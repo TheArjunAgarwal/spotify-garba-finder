@@ -297,7 +297,7 @@
   built by one person, on one weekend, to stop being single · not a company
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ======================= CONFIG — fill these in ======================= */
 const CONFIG = {
@@ -308,8 +308,6 @@ const CONFIG = {
   REDIRECT_URI: "https://thearjunagarwal.github.io/spotify-garba-finder/"
 };
 /* ======================================================================= */
-
-const supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
 /* ---------- seeking chips ---------- */
 const seekingState = new Set();
@@ -377,6 +375,20 @@ FAQ.forEach((item, i)=>{
   faqList.appendChild(el);
 });
 
+/* ---------- supabase client (guarded — a bad URL/key here should never
+   block the rest of the page, e.g. the FAQ, from working) ---------- */
+let sb = null;
+try{
+  if(!window.supabase) throw new Error('Supabase library did not load (check the <script src> tag / network).');
+  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+}catch(e){
+  console.error('Supabase failed to initialize:', e);
+  const errEl = document.getElementById('form-error');
+  errEl.textContent = "Signups are temporarily unavailable (setup issue on our end) — the FAQ still works, please check back soon.";
+  errEl.style.display = 'block';
+  document.getElementById('submit-btn').disabled = true;
+}
+
 /* ---------- PKCE helpers ---------- */
 function randomString(len){
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -421,6 +433,11 @@ function collectForm(){
 document.getElementById('submit-btn').addEventListener('click', async ()=>{
   const errEl = document.getElementById('form-error');
   errEl.style.display = 'none';
+  if(!sb){
+    errEl.textContent = "Signups are temporarily unavailable (setup issue on our end) — please check back soon.";
+    errEl.style.display = 'block';
+    return;
+  }
   const result = collectForm();
   if(result.error){
     errEl.textContent = result.error;
@@ -473,6 +490,12 @@ async function handleSpotifyReturn(){
     history.replaceState({}, '', window.location.pathname);
     return;
   }
+  if(!sb){
+    document.getElementById('form-error').textContent = "Signups are temporarily unavailable (setup issue on our end) — please check back soon.";
+    document.getElementById('form-error').style.display = 'block';
+    history.replaceState({}, '', window.location.pathname);
+    return;
+  }
 
   const submitBtn = document.getElementById('submit-btn');
   submitBtn.disabled = true;
@@ -519,7 +542,7 @@ async function handleSpotifyReturn(){
 
     // 3. Write everything to Supabase in one row.
     const form = JSON.parse(pendingForm);
-    const { error: insertError } = await supabase.from('submissions').insert([{
+    const { error: insertError } = await sb.from('submissions').insert([{
       name: form.name,
       email: form.email,
       gender: form.gender,
