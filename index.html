@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>aux/love — a small matchmaking experiment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBF4E6;
+    --paper:#FFFDF9;
+    --ink:#20203A;
+    --raspberry:#C9184A;
+    --raspberry-dark:#9E1238;
+    --mustard:#F4B942;
+    --mint:#2FA88A;
+    --line:#20203A22;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Space Grotesk',sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Baloo 2',cursive;
+    font-weight:700;
+    line-height:1.1;
+    margin:0;
+  }
+  a{color:var(--raspberry-dark);}
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px;}
+
+  /* texture: a faint dotted grain over the cream */
+  .grain{
+    position:fixed;inset:0;pointer-events:none;opacity:.5;z-index:0;
+    background-image:radial-gradient(var(--ink) 0.6px, transparent 0.6px);
+    background-size:16px 16px;
+    opacity:.045;
+  }
+
+  header.top{
+    position:relative;z-index:2;
+    display:flex;align-items:center;justify-content:space-between;
+    max-width:760px;margin:0 auto;padding:22px 24px 0;
+  }
+  .logo{font-family:'Baloo 2';font-weight:800;font-size:1.15rem;letter-spacing:.2px;}
+  .logo em{font-style:normal;color:var(--raspberry);}
+  .nav-links{display:flex;gap:18px;font-size:.92rem;}
+  .nav-links a{text-decoration:none;color:var(--ink);opacity:.75;}
+  .nav-links a:hover{opacity:1;}
+
+  /* HERO */
+  .hero{position:relative;z-index:1;padding:70px 24px 40px;text-align:center;}
+  .badge{
+    display:inline-block;background:var(--paper);border:1.5px solid var(--line);
+    border-radius:999px;padding:6px 14px;font-size:.82rem;margin-bottom:22px;
+    transform:rotate(-2deg);
+  }
+  .hero h1{
+    font-size:clamp(2.3rem, 6vw, 3.6rem);
+    max-width:15ch;margin:0 auto;
+  }
+  .hero h1 .u{
+    text-decoration:underline;
+    text-decoration-color:var(--mustard);
+    text-decoration-thickness:6px;
+    text-underline-offset:4px;
+  }
+  .hero p.sub{
+    max-width:46ch;margin:18px auto 0;font-size:1.08rem;opacity:.82;
+  }
+  .hero-cta{margin-top:30px;}
+  .btn{
+    font-family:'Baloo 2';font-weight:700;font-size:1rem;
+    border:none;border-radius:14px;padding:14px 26px;cursor:pointer;
+    background:var(--raspberry);color:#fff;
+    box-shadow:0 4px 0 var(--raspberry-dark);
+    transition:transform .08s ease;
+  }
+  .btn:hover{transform:translateY(-1px);}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--raspberry-dark);}
+  .btn.secondary{
+    background:var(--paper);color:var(--ink);
+    box-shadow:0 4px 0 var(--line);
+  }
+  .btn.secondary:active{box-shadow:0 1px 0 var(--line);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:0 4px 0 var(--line);}
+
+  /* STEPS */
+  .steps{position:relative;z-index:1;padding:20px 24px 60px;}
+  .steps-grid{
+    max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+  }
+  .step{
+    background:var(--paper);border:1.5px solid var(--line);border-radius:var(--radius);
+    padding:20px 16px;text-align:left;
+  }
+  .step .n{
+    font-family:'Baloo 2';font-weight:800;color:var(--raspberry);font-size:1.6rem;
+  }
+  .step h3{font-size:1.02rem;margin-top:6px;}
+  .step p{font-size:.9rem;opacity:.75;margin:6px 0 0;}
+  @media(max-width:640px){.steps-grid{grid-template-columns:1fr;}}
+
+  /* FORM */
+  section#join{position:relative;z-index:1;padding:20px 24px 70px;}
+  .card{
+    max-width:640px;margin:0 auto;background:var(--paper);
+    border:1.5px solid var(--line);border-radius:24px;padding:36px 32px;
+  }
+  .card h2{font-size:1.7rem;text-align:center;}
+  .card p.lede{text-align:center;opacity:.75;margin:8px 0 28px;font-size:.95rem;}
+  label{display:block;font-size:.85rem;font-weight:600;margin:0 0 6px;}
+  .field{margin-bottom:18px;}
+  input[type=text], input[type=email], input[type=number], select{
+    width:100%;padding:11px 13px;border-radius:12px;border:1.5px solid var(--line);
+    background:var(--cream);font-family:inherit;font-size:.95rem;color:var(--ink);
+  }
+  input:focus, select:focus{outline:2px solid var(--mustard);outline-offset:1px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:.86rem;
+    cursor:pointer;background:var(--cream);user-select:none;
+  }
+  .chip.on{background:var(--raspberry);border-color:var(--raspberry);color:#fff;}
+  .hint{font-size:.78rem;opacity:.6;margin-top:6px;}
+  .spotify-box{
+    margin-top:8px;border:1.5px dashed var(--line);border-radius:14px;padding:16px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    background:var(--cream);
+  }
+  .spotify-box .status{font-size:.88rem;}
+  .spotify-box .status b{display:block;font-size:.95rem;}
+  #form-error{color:var(--raspberry-dark);font-size:.85rem;margin-top:10px;display:none;}
+  #submit-row{margin-top:26px;text-align:center;}
+  #submit-row .btn{width:100%;}
+
+  .success-card{max-width:640px;margin:0 auto;background:var(--paper);border:1.5px solid var(--line);
+    border-radius:24px;padding:40px 32px;text-align:center;}
+  .success-card .stamp{font-size:2.4rem;margin-bottom:8px;}
+
+  /* FAQ */
+  section#faq{position:relative;z-index:1;padding:10px 24px 90px;}
+  .faq-item{
+    max-width:640px;margin:0 auto 12px;background:var(--paper);border:1.5px solid var(--line);
+    border-radius:16px;overflow:hidden;
+  }
+  .faq-q{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:16px 20px;cursor:pointer;font-family:'Baloo 2';font-weight:600;font-size:1rem;
+  }
+  .faq-q .plus{font-size:1.3rem;color:var(--raspberry);transition:transform .15s ease;flex:none;}
+  .faq-item.open .plus{transform:rotate(45deg);}
+  .faq-a{max-height:0;overflow:hidden;transition:max-height .2s ease;}
+  .faq-a-inner{padding:0 20px 18px;font-size:.93rem;opacity:.85;}
+  .faq-a-inner a{word-break:break-word;}
+  .faq-a-inner ul{padding-left:20px;margin:8px 0;}
+
+  footer{
+    position:relative;z-index:1;text-align:center;padding:30px 24px 50px;
+    font-size:.82rem;opacity:.6;
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<header class="top">
+  <div class="logo">aux<em>/</em>love</div>
+  <nav class="nav-links">
+    <a href="#join">join</a>
+    <a href="#faq">faq</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="badge">🎧 one round · limited spots · real humans only</div>
+  <h1>We matched your <span class="u">taste in music</span>, not your bio.</h1>
+  <p class="sub">Fill in five honest details, connect Spotify for ten seconds, and we'll do the actual work of finding someone whose playlists make sense next to yours.</p>
+  <div class="hero-cta">
+    <button class="btn" onclick="document.getElementById('join').scrollIntoView()">Sign me up</button>
+  </div>
+</section>
+
+<section class="steps">
+  <div class="steps-grid">
+    <div class="step">
+      <div class="n">1</div>
+      <h3>Tell us the basics</h3>
+      <p>Name, email, who you are, who you're into, and the age range you're open to.</p>
+    </div>
+    <div class="step">
+      <div class="n">2</div>
+      <h3>Connect Spotify</h3>
+      <p>We read your top tracks and artists for a minute — that's the actual matching signal.</p>
+    </div>
+    <div class="step">
+      <div class="n">3</div>
+      <h3>Wait for the email</h3>
+      <p>When the round closes, everyone gets one match by email. No swiping, no app.</p>
+    </div>
+  </div>
+</section>
+
+<section id="join">
+  <div id="form-wrap" class="card">
+    <h2>Join the round</h2>
+    <p class="lede">Takes about ninety seconds. Read the FAQ below before you connect Spotify.</p>
+
+    <div class="field">
+      <label for="f-name">Name</label>
+      <input type="text" id="f-name" placeholder="What should we call you">
+    </div>
+
+    <div class="field">
+      <label for="f-email">Email</label>
+      <input type="email" id="f-email" placeholder="Where your match gets sent">
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label for="f-gender">Your gender</label>
+        <select id="f-gender">
+          <option value="">Choose one</option>
+          <option>Woman</option>
+          <option>Man</option>
+          <option>Non-binary</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-age">Your age</label>
+        <input type="number" id="f-age" min="18" max="99" placeholder="18+">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Interested in</label>
+      <div class="chips" id="seeking-chips">
+        <div class="chip" data-v="Women">Women</div>
+        <div class="chip" data-v="Men">Men</div>
+        <div class="chip" data-v="Non-binary">Non-binary people</div>
+        <div class="chip" data-v="Everyone">Everyone</div>
+      </div>
+      <p class="hint">Tap all that apply.</p>
+    </div>
+
+    <div class="field">
+      <label>Age range you'd consider</label>
+      <div class="row2">
+        <input type="number" id="f-age-min" min="18" max="99" placeholder="Min age">
+        <input type="number" id="f-age-max" min="18" max="99" placeholder="Max age">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Music taste</label>
+      <div class="spotify-box">
+        <div class="status" id="spotify-status">
+          <b>Not connected yet</b>
+          <span id="spotify-sub">We'll pull this straight from your account — nothing to type.</span>
+        </div>
+        <button class="btn secondary" id="spotify-btn" type="button">Connect Spotify</button>
+      </div>
+    </div>
+
+    <div id="form-error"></div>
+    <div id="submit-row">
+      <button class="btn" id="submit-btn" type="button">Save my answers, then connect Spotify →</button>
+    </div>
+  </div>
+
+  <div id="success-wrap" class="success-card" style="display:none;">
+    <div class="stamp">✅</div>
+    <h2>You're in.</h2>
+    <p>We saved your details and your Spotify taste. Sit tight for the match email when this round closes.</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap" style="margin-bottom:22px;text-align:center;">
+    <h2>FAQ</h2>
+  </div>
+  <div id="faq-list"></div>
+</section>
+
+<footer>
+  built by one person, on one weekend, to stop being single · not a company
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* ======================= CONFIG — fill these in ======================= */
+const CONFIG = {
+  SUPABASE_URL: "https://jncyrcgbdmiqlortgqgt.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_wjhg4neq3txg9EAVZINk3g_-A66NfVx",
+  SPOTIFY_CLIENT_ID: "YOUR-SPOTIFY-CLIENT-ID",
+  // Must exactly match a Redirect URI registered in your Spotify app.
+  REDIRECT_URI: window.location.origin + window.location.pathname
+};
+/* ======================================================================= */
+
+const supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
+/* ---------- seeking chips ---------- */
+const seekingState = new Set();
+document.querySelectorAll('#seeking-chips .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    const v = chip.dataset.v;
+    if(seekingState.has(v)){ seekingState.delete(v); chip.classList.remove('on'); }
+    else { seekingState.add(v); chip.classList.add('on'); }
+  });
+});
+
+/* ---------- FAQ data + render ---------- */
+const FAQ = [
+  {
+    q: "Do you plan to sell my data?",
+    a: `No. What I collect is a strict subset of what Spotify already knows about you. I am not in the business of selling data — I'm not in any business at all.
+    My whole privacy policy is: I'm not going to sell your data, and I'm probably not even going to look at it. At the end of the signup window, I export everything to a CSV, run it through my matching code, get a CSV of matches back, and email everyone their result from an SMTP server on my own computer. Then I delete all of it.`
+  },
+  {
+    q: "Is this a startup?",
+    a: `No. I'm doing this so I stop being single, and to help other people along the way while I'm at it. I don't care enough about money to turn it into one. The code is open source — take it, run your own round, don't ask me for permission.`
+  },
+  {
+    q: "Do you support Spotify?",
+    a: `No. Spotify supports apartheid, genocide, and racial deportations — see <a href="https://bdsmovement.net/boycott-spotify" target="_blank" rel="noopener">bdsmovement.net/boycott-spotify</a>. I personally use Spotify with an ad blocker. The reason I'm using it here is popularity plus an API that actually works. I'm not neutral about this and I'm not going to pretend to be.`
+  },
+  {
+    q: "What exactly do you read from my Spotify?",
+    a: `Your top tracks and top artists (the <code>user-top-read</code> scope) and your Spotify display name — nothing else. I don't get your playlists, your messages, your payment info, or anything you haven't explicitly authorized on Spotify's own consent screen.`
+  },
+  {
+    q: "How does the matching actually work?",
+    a: `Roughly: everyone's top tracks/artists get turned into a taste profile, profiles get compared for overlap and similarity, and the algorithm pairs people up within the gender and age preferences they gave — favoring the best taste match it can find. It's not machine learning magic, it's a weekend project.`
+  },
+  {
+    q: "Can I run my own version of this?",
+    a: `Yes — the code is open source, do whatever you want with it. If you make something cool with it I'd love to hear about it, but you don't owe me anything.`
+  },
+  {
+    q: "What if I don't like my match?",
+    a: `Then you don't message them. This is a low-stakes experiment, not a subscription — nobody's tracking whether it "worked."`
+  }
+];
+
+const faqList = document.getElementById('faq-list');
+FAQ.forEach((item, i)=>{
+  const el = document.createElement('div');
+  el.className = 'faq-item';
+  el.innerHTML = `
+    <div class="faq-q"><span>${item.q}</span><span class="plus">+</span></div>
+    <div class="faq-a"><div class="faq-a-inner">${item.a}</div></div>
+  `;
+  const qEl = el.querySelector('.faq-q');
+  const aEl = el.querySelector('.faq-a');
+  qEl.addEventListener('click', ()=>{
+    const isOpen = el.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(o=>{
+      o.classList.remove('open'); o.querySelector('.faq-a').style.maxHeight=null;
+    });
+    if(!isOpen){
+      el.classList.add('open');
+      aEl.style.maxHeight = aEl.scrollHeight + 'px';
+    }
+  });
+  faqList.appendChild(el);
+});
+
+/* ---------- PKCE helpers ---------- */
+function randomString(len){
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let out = '';
+  const rand = crypto.getRandomValues(new Uint8Array(len));
+  for(let i=0;i<len;i++) out += chars[rand[i] % chars.length];
+  return out;
+}
+async function sha256base64url(input){
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  let str = '';
+  new Uint8Array(digest).forEach(b => str += String.fromCharCode(b));
+  return btoa(str).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+/* ---------- form validation + kickoff spotify auth ---------- */
+function collectForm(){
+  const name = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const gender = document.getElementById('f-gender').value;
+  const age = parseInt(document.getElementById('f-age').value, 10);
+  const ageMin = parseInt(document.getElementById('f-age-min').value, 10);
+  const ageMax = parseInt(document.getElementById('f-age-max').value, 10);
+  const seeking = Array.from(seekingState);
+
+  if(!name || !email || !gender || !age || !ageMin || !ageMax || seeking.length===0){
+    return { error: "Fill in every field, including at least one 'interested in' option." };
+  }
+  if(!/^\S+@\S+\.\S+$/.test(email)){
+    return { error: "That email doesn't look right." };
+  }
+  if(age < 18 || ageMin < 18 || ageMax < 18){
+    return { error: "This is 18+ only." };
+  }
+  if(ageMin > ageMax){
+    return { error: "Your minimum age preference is higher than your maximum." };
+  }
+  return { data: { name, email, gender, age, age_pref_min: ageMin, age_pref_max: ageMax, seeking } };
+}
+
+document.getElementById('submit-btn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('form-error');
+  errEl.style.display = 'none';
+  const result = collectForm();
+  if(result.error){
+    errEl.textContent = result.error;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Stash the form answers so we still have them after the Spotify redirect.
+  sessionStorage.setItem('pending_form', JSON.stringify(result.data));
+
+  const verifier = randomString(64);
+  const state = randomString(16);
+  sessionStorage.setItem('pkce_verifier', verifier);
+  sessionStorage.setItem('oauth_state', state);
+  const challenge = await sha256base64url(verifier);
+
+  const params = new URLSearchParams({
+    client_id: CONFIG.SPOTIFY_CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: CONFIG.REDIRECT_URI,
+    scope: 'user-top-read',
+    code_challenge_method: 'S256',
+    code_challenge: challenge,
+    state
+  });
+  window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
+});
+
+/* ---------- handle the redirect back from Spotify ---------- */
+async function handleSpotifyReturn(){
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const state = params.get('state');
+  const err = params.get('error');
+
+  if(err){
+    document.getElementById('form-error').textContent = "Spotify sign-in was cancelled or failed. Try again.";
+    document.getElementById('form-error').style.display = 'block';
+    history.replaceState({}, '', window.location.pathname);
+    return;
+  }
+  if(!code) return;
+
+  const storedState = sessionStorage.getItem('oauth_state');
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  const pendingForm = sessionStorage.getItem('pending_form');
+
+  if(!verifier || !pendingForm || state !== storedState){
+    // Nothing usable to resume — just clean the URL.
+    history.replaceState({}, '', window.location.pathname);
+    return;
+  }
+
+  const submitBtn = document.getElementById('submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Talking to Spotify…";
+  document.getElementById('spotify-sub').textContent = "Connecting…";
+
+  try{
+    // 1. Exchange the code for an access token (PKCE — no client secret needed).
+    const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: CONFIG.REDIRECT_URI,
+        client_id: CONFIG.SPOTIFY_CLIENT_ID,
+        code_verifier: verifier
+      })
+    });
+    if(!tokenRes.ok) throw new Error('Spotify token exchange failed');
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
+    const authHeader = { headers: { Authorization: 'Bearer ' + accessToken } };
+
+    // 2. Pull profile + top tracks/artists.
+    const [meRes, tracksRes, artistsRes] = await Promise.all([
+      fetch('https://api.spotify.com/v1/me', authHeader),
+      fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term', authHeader),
+      fetch('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=medium_term', authHeader)
+    ]);
+    const me = await meRes.json();
+    const tracksJson = await tracksRes.json();
+    const artistsJson = await artistsRes.json();
+
+    const topTracks = (tracksJson.items || []).map(t => ({
+      id: t.id, name: t.name, artists: t.artists.map(a=>a.name), popularity: t.popularity
+    }));
+    const topArtists = (artistsJson.items || []).map(a => ({
+      id: a.id, name: a.name, genres: a.genres, popularity: a.popularity
+    }));
+    const genreCount = {};
+    topArtists.forEach(a => a.genres.forEach(g => genreCount[g] = (genreCount[g]||0)+1));
+    const topGenres = Object.entries(genreCount).sort((a,b)=>b[1]-a[1]).slice(0,20).map(([g])=>g);
+
+    // 3. Write everything to Supabase in one row.
+    const form = JSON.parse(pendingForm);
+    const { error: insertError } = await supabase.from('submissions').insert([{
+      name: form.name,
+      email: form.email,
+      gender: form.gender,
+      age: form.age,
+      seeking: form.seeking,
+      age_pref_min: form.age_pref_min,
+      age_pref_max: form.age_pref_max,
+      spotify_id: me.id,
+      spotify_display_name: me.display_name,
+      top_tracks: topTracks,
+      top_artists: topArtists,
+      top_genres: topGenres
+    }]);
+    if(insertError) throw insertError;
+
+    // 4. Clean up and show success.
+    sessionStorage.removeItem('pending_form');
+    sessionStorage.removeItem('pkce_verifier');
+    sessionStorage.removeItem('oauth_state');
+    history.replaceState({}, '', window.location.pathname);
+    document.getElementById('form-wrap').style.display = 'none';
+    document.getElementById('success-wrap').style.display = 'block';
+    document.getElementById('success-wrap').scrollIntoView({behavior:'smooth'});
+
+  }catch(e){
+    console.error(e);
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Save my answers, then connect Spotify →";
+    document.getElementById('spotify-sub').textContent = "We'll pull this straight from your account — nothing to type.";
+    const errEl = document.getElementById('form-error');
+    errEl.textContent = "Something went wrong talking to Spotify or saving your answers. Please try again.";
+    errEl.style.display = 'block';
+  }
+}
+
+document.getElementById('spotify-btn').addEventListener('click', ()=>{
+  document.getElementById('submit-btn').click();
+});
+
+handleSpotifyReturn();
+</script>
+</body>
+</html>
