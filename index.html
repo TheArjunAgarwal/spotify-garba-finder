@@ -309,6 +309,22 @@ const CONFIG = {
 };
 /* ======================================================================= */
 
+/* ---------- visible error banner (so a failure is readable on-page,
+   including on phones, without opening devtools) ---------- */
+function showDebug(msg){
+  let d = document.getElementById('debug-banner');
+  if(!d){
+    d = document.createElement('div');
+    d.id = 'debug-banner';
+    d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#20203A;color:#fff;'
+      + 'font:12px/1.5 monospace;padding:10px 14px;z-index:9999;white-space:pre-wrap;max-height:40vh;overflow:auto;';
+    document.body.appendChild(d);
+  }
+  d.textContent += (d.textContent ? '\n' : 'Page error — screenshot this and send it over:\n') + msg;
+}
+window.addEventListener('error', e => showDebug((e.message || 'Unknown error') + (e.filename ? ` (${e.filename}:${e.lineno})` : '')));
+window.addEventListener('unhandledrejection', e => showDebug('Promise rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)));
+
 /* ---------- seeking chips ---------- */
 const seekingState = new Set();
 document.querySelectorAll('#seeking-chips .chip').forEach(chip=>{
